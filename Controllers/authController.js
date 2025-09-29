@@ -1,12 +1,16 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const { validationResult } = require('express-validator');
 
 exports.register = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   const { name, email, password, age, address } = req.body;
-    try {
+  try {
     const user = new User({ name, email, password, age, address });
-await user.save(); // password is hashed by pre('save') hook
+    await user.save(); // password is hashed by pre('save') hook
     res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -14,25 +18,16 @@ await user.save(); // password is hashed by pre('save') hook
 };
 
 exports.login = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: 'Email and password are required' });
-  }
-
   try {
     const user = await User.findOne({ email });
-    if (!user) {
-      console.log('User not found');
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+    if (!user) return res.status(401).json({ message: 'Invalid email or password' });
 
     const isMatch = await user.comparePassword(password);
-    console.log('Password match:', isMatch);
-
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
+    if (!isMatch) return res.status(401).json({ message: 'Invalid email or password' });
 
     const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRES_IN || '1d'
@@ -40,11 +35,9 @@ exports.login = async (req, res) => {
 
     res.json({ token });
   } catch (err) {
-    console.error('Login error:', err);
     res.status(500).json({ error: err.message });
   }
 };
-
 
 exports.getProfile = async (req, res) => {
   try {
@@ -56,6 +49,9 @@ exports.getProfile = async (req, res) => {
 };
 
 exports.updateProfile = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const updatedUser = await User.findByIdAndUpdate(req.user._id, req.body, {
       new: true,
@@ -66,18 +62,16 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-// Edit profile (PATCH)
+
 exports.editProfile = async (req, res) => {
-  console.log('PATCH /api/profile hit');
-  console.log('Request body:', req.body);
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const updates = req.body;
-
-    // If password is being updated, hash it manually
     if (updates.password) {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
-console.log('PATCH /api/profile hit');
 
     const updatedUser = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
@@ -90,7 +84,6 @@ console.log('PATCH /api/profile hit');
   }
 };
 
-// Delete profile (DELETE)
 exports.deleteProfile = async (req, res) => {
   try {
     await User.findByIdAndDelete(req.user._id);

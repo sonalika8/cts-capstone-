@@ -8,7 +8,7 @@ const {
   editProfile,
   deleteProfile
 } = require('../Controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/auth');
 const { registerValidation, loginValidation, profileUpdateValidation 
 
 } = require('../utils/validation');
